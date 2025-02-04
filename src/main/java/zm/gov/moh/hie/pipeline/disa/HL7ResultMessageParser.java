@@ -36,8 +36,18 @@ public class HL7ResultMessageParser {
             // Parse MSH segment
             MSH msh = oruMessage.getMSH();
             labResult.setMessageId(msh.getMessageControlID().getValue());
-            labResult.setSendingFacilityId(msh.getSendingFacility().getNamespaceID().getValue());
-            labResult.setTargetedDisaCode(msh.getReceivingApplication().getNamespaceID().getValue());
+
+            // Get the sending facility code (second component of MSH-4)
+            String facilityCode = msh.getSendingFacility().getUniversalID().getValue();
+            if (facilityCode != null && !facilityCode.isEmpty()) {
+                labResult.setSendingFacilityId(facilityCode);
+            } else {
+                // Fallback to namespace ID if universal ID is not available
+                labResult.setSendingFacilityId(msh.getSendingFacility().getNamespaceID().getValue());
+            }
+
+            // Get receiving lab code from receiving facility
+            labResult.setReceivingLabCode(msh.getReceivingFacility().getNamespaceID().getValue());
 
             // Get date/time from MSH segment
             String dateTimeStr = msh.getDateTimeOfMessage().getTime().getValue();
