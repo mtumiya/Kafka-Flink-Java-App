@@ -35,7 +35,15 @@ public class HL7MessageParser {
             // Parse MSH segment
             MSH msh = omlMessage.getMSH();
             labOrder.setMessageId(msh.getMessageControlID().getValue());
-            labOrder.setSendingFacilityId(msh.getSendingFacility().getNamespaceID().getValue());
+
+            // Get the sending facility code (second component of MSH-4)
+            String facilityCode = msh.getSendingFacility().getUniversalID().getValue();
+            if (facilityCode != null && !facilityCode.isEmpty()) {
+                labOrder.setSendingFacilityId(facilityCode);
+            } else {
+                // Fallback to namespace ID if universal ID is not available
+                labOrder.setSendingFacilityId(msh.getSendingFacility().getNamespaceID().getValue());
+            }
 
             // Get date/time from MSH segment
             String dateTimeStr = msh.getDateTimeOfMessage().getTime().getValue();
@@ -44,7 +52,6 @@ public class HL7MessageParser {
             // Parse PID segment
             PID pid = omlMessage.getPATIENT().getPID();
             LabOrder.Patient patient = new LabOrder.Patient();
-            // Get NUPN from patient identifier list
             patient.setNupn(pid.getPatientIdentifierList(0).getIDNumber().getValue());
             patient.setSex(pid.getAdministrativeSex().getValue());
             labOrder.setPatient(patient);
@@ -57,9 +64,7 @@ public class HL7MessageParser {
 
             // Extract OBR segments
             var order = omlMessage.getORDER();
-            // Get observation requests
             var observationRequest = order.getOBSERVATION_REQUEST();
-            // Access the OBR segment directly
             OBR obr = observationRequest.getOBR();
 
             // Create lab test from OBR
@@ -72,8 +77,8 @@ public class HL7MessageParser {
             labTests.add(labTest);
             labOrder.setLabTestsOrdered(labTests);
 
-            // Extract DISA code from receiving application
-            labOrder.setTargetedDisaCode(extractDisaCode(omlMessage));
+            // Extract receiving lab code from receiving facility
+            labOrder.setReceivingLabCode(extractReceivingLabCode(omlMessage));
 
             return labOrder;
 
@@ -95,7 +100,7 @@ public class HL7MessageParser {
         return LocalDateTime.parse(hl7DateTime, formatter);
     }
 
-    private static String extractDisaCode(OML_O21 message) throws HL7Exception {
-        return message.getMSH().getReceivingApplication().getNamespaceID().getValue();
+    private static String extractReceivingLabCode(OML_O21 message) throws HL7Exception {
+        return message.getMSH().getReceivingFacility().getNamespaceID().getValue();
     }
 }

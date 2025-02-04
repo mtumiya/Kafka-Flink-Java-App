@@ -14,11 +14,11 @@ public class PostgresSinkSchemas {
         private static final long serialVersionUID = 1L;
         private static final String INSERT_SQL =
                 "INSERT INTO lab_orders " +
-                        "(lab_order_id, sending_facility_id, targeted_disa_code, sending_date_time, lab_tests_ordered) " +
+                        "(lab_order_id, sending_facility_id, receiving_lab_code, sending_date_time, lab_tests_ordered) " +
                         "VALUES (?, ?, ?, ?, ?::jsonb) " +
                         "ON CONFLICT (lab_order_id) DO UPDATE SET " +
                         "sending_facility_id = EXCLUDED.sending_facility_id, " +
-                        "targeted_disa_code = EXCLUDED.targeted_disa_code, " +
+                        "receiving_lab_code = EXCLUDED.receiving_lab_code, " +
                         "sending_date_time = EXCLUDED.sending_date_time, " +
                         "lab_tests_ordered = EXCLUDED.lab_tests_ordered";
 
@@ -37,7 +37,7 @@ public class PostgresSinkSchemas {
             try {
                 setString(statement, 1, labOrder.getLabOrderId());
                 setString(statement, 2, labOrder.getSendingFacilityId());
-                setString(statement, 3, labOrder.getTargetedDisaCode());
+                setString(statement, 3, labOrder.getReceivingLabCode());
                 setTimestamp(statement, 4, labOrder.getSendingDateTime());
 
                 String labTestsJson = objectMapper.writeValueAsString(labOrder.getLabTestsOrdered());

@@ -11,8 +11,8 @@ public class LabOrder {
     @JsonProperty("sending_facility_id")
     private String sendingFacilityId;
 
-    @JsonProperty("targeted_disa_code")
-    private String targetedDisaCode;
+    @JsonProperty("receiving_lab_code")
+    private String receivingLabCode;
 
     @JsonProperty("sending_date_time")
     private LocalDateTime sendingDateTime;
@@ -60,8 +60,8 @@ public class LabOrder {
     public String getSendingFacilityId() { return sendingFacilityId; }
     public void setSendingFacilityId(String sendingFacilityId) { this.sendingFacilityId = sendingFacilityId; }
 
-    public String getTargetedDisaCode() { return targetedDisaCode; }
-    public void setTargetedDisaCode(String targetedDisaCode) { this.targetedDisaCode = targetedDisaCode; }
+    public String getReceivingLabCode() { return receivingLabCode; }
+    public void setReceivingLabCode(String receivingLabCode) { this.receivingLabCode = receivingLabCode; }
 
     public LocalDateTime getSendingDateTime() { return sendingDateTime; }
     public void setSendingDateTime(LocalDateTime sendingDateTime) { this.sendingDateTime = sendingDateTime; }
