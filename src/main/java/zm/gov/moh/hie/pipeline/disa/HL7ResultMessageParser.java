@@ -56,42 +56,50 @@ public class HL7ResultMessageParser {
             PID pid = oruMessage.getPATIENT_RESULT().getPATIENT().getPID();
             labResult.setPatientNupn(pid.getPatientIdentifierList(0).getIDNumber().getValue());
 
-            // Get the lab order ID from ORC segment
+            // Get the lab order ID
             labResult.setLabOrderId(oruMessage.getPATIENT_RESULT().getORDER_OBSERVATION().getORC()
                     .getPlacerOrderNumber().getEntityIdentifier().getValue());
 
-            // Parse OBR and OBX segments for results
-            List<LabResult.TestResult> testResults = new ArrayList<>();
+            // Create a single combined test result
             var orderObs = oruMessage.getPATIENT_RESULT().getORDER_OBSERVATION();
             OBR obr = orderObs.getOBR();
 
-            // Get common test information from OBR
-            String testCode = obr.getUniversalServiceIdentifier().getIdentifier().getValue();
-            String testName = obr.getUniversalServiceIdentifier().getText().getValue();
+            List<LabResult.TestResult> testResults = new ArrayList<>();
+            LabResult.TestResult result = new LabResult.TestResult();
 
-            // Process all observations
-            int obsCount = orderObs.getOBSERVATIONReps();
-            if (obsCount > 0) {
-                LabResult.TestResult result = new LabResult.TestResult();
-                result.setCode(testCode);
-                result.setName(testName);
+            // Set test info from OBR
+            result.setCode(obr.getUniversalServiceIdentifier().getIdentifier().getValue());
+            result.setName(obr.getUniversalServiceIdentifier().getText().getValue());
 
-                // Get the main result from the first relevant OBX
-                for (int i = 0; i < obsCount; i++) {
-                    OBX obx = orderObs.getOBSERVATION(i).getOBX();
-                    if (obx.getObservationValue().length > 0) {
-                        result.setValue(obx.getObservationValue(0).encode());
-                        result.setUnit(obx.getUnits().getIdentifier().getValue());
-                        result.setReferenceRange(obx.getReferencesRange().getValue());
+            // Find the first OBX with actual results
+            boolean foundResult = false;
+            for (int i = 0; i < orderObs.getOBSERVATIONReps() && !foundResult; i++) {
+                OBX obx = orderObs.getOBSERVATION(i).getOBX();
 
-                        String obsDateTime = obx.getDateTimeOfTheObservation().getTime().getValue();
-                        if (obsDateTime != null && !obsDateTime.isEmpty()) {
-                            result.setObservationDateTime(parseDateTime(obsDateTime));
-                        }
-                        testResults.add(result);
-                        break;  // Only take the first valid result
-                    }
+                // Skip empty or header OBX segments
+                if (obx.getObservationValue().length == 0) {
+                    continue;
                 }
+
+                String value = obx.getObservationValue(0).encode();
+                if (value != null && !value.trim().isEmpty()) {
+                    result.setValue(value);
+                    result.setUnit(obx.getUnits().getIdentifier().getValue());
+                    result.setReferenceRange(obx.getReferencesRange().getValue());
+
+                    // Set observation datetime
+                    String obsDateTime = obx.getDateTimeOfTheObservation().getTime().getValue();
+                    if (obsDateTime != null && !obsDateTime.isEmpty()) {
+                        result.setObservationDateTime(parseDateTime(obsDateTime));
+                    }
+
+                    foundResult = true;
+                }
+            }
+
+            // Only add if we found a valid result
+            if (foundResult) {
+                testResults.add(result);
             }
 
             labResult.setLabTestResults(testResults);
@@ -113,16 +121,21 @@ public class HL7ResultMessageParser {
 
         try {
             switch (hl7DateTime.length()) {
+                case 8: // YYYYMMDD
+                    return LocalDateTime.parse(hl7DateTime + "000000",
+                            DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                 case 12: // YYYYMMDDHHmm
-                    return LocalDateTime.parse(hl7DateTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+                    return LocalDateTime.parse(hl7DateTime,
+                            DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
                 case 14: // YYYYMMDDHHmmss
-                    return LocalDateTime.parse(hl7DateTime, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-                case 19: // YYYYMMDDHHmmss.SSS
-                    return LocalDateTime.parse(hl7DateTime, DateTimeFormatter.ofPattern("yyyyMMddHHmmss.SSS"));
+                    return LocalDateTime.parse(hl7DateTime,
+                            DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                 default:
                     LOG.warn("Unexpected datetime format: {}", hl7DateTime);
+                    // Try to parse with base format by padding with zeros if needed
                     String paddedDateTime = hl7DateTime + "00".repeat((14 - hl7DateTime.length()) / 2);
-                    return LocalDateTime.parse(paddedDateTime, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                    return LocalDateTime.parse(paddedDateTime,
+                            DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             }
         } catch (Exception e) {
             LOG.error("Error parsing datetime {}: {}", hl7DateTime, e.getMessage());

@@ -4,14 +4,12 @@ zm\gov\moh\hie\pipeline\disa\TestHL7AckProducer.class
 zm\gov\moh\hie\pipeline\disa\HL7DeserializationSchema$HL7AckDeserializationSchema.class
 zm\gov\moh\hie\pipeline\disa\JsonSerializationSchemas$LabResultSerializationSchema.class
 zm\gov\moh\hie\pipeline\disa\PostgresSinkSchemas$LabResultSink.class
-zm\gov\moh\hie\pipeline\disa\LabMessageProcessingJob.class
 zm\gov\moh\hie\pipeline\disa\PostgresSinkSchemas$LabOrderAckSink.class
 zm\gov\moh\hie\pipeline\disa\LabOrder.class
 zm\gov\moh\hie\pipeline\disa\HL7DeserializationSchema$HL7MessageDeserializationSchema.class
 zm\gov\moh\hie\pipeline\disa\PostgresSinkSchemas.class
 zm\gov\moh\hie\pipeline\disa\TestHL7Producer.class
 zm\gov\moh\hie\pipeline\disa\BaseJsonSerializationSchema.class
-zm\gov\moh\hie\pipeline\disa\Main.class
 zm\gov\moh\hie\pipeline\disa\LabResult$TestResult.class
 zm\gov\moh\hie\pipeline\disa\BasePostgresSink.class
 zm\gov\moh\hie\pipeline\disa\HL7MessageParser.class

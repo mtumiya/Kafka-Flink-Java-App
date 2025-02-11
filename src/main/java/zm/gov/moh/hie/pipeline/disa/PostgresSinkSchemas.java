@@ -94,7 +94,7 @@ public class PostgresSinkSchemas {
     public static class LabResultSink extends BasePostgresSink<LabResult> {
         private static final long serialVersionUID = 1L;
         private static final String INSERT_SQL =
-                "INSERT INTO lab_results " +
+                "INSERT INTO crt.lab_results " +
                         "(lab_order_id, sending_facility_id, receiving_lab_code, sending_date_time, " +
                         "lab_test_results, message_id, patient_nupn) " +
                         "VALUES (?, ?, ?, ?, ?::jsonb, ?, ?) " +
@@ -119,16 +119,16 @@ public class PostgresSinkSchemas {
         protected void setStatementParameters(PreparedStatement statement, LabResult labResult)
                 throws SQLException {
             try {
-                setString(statement, 1, labResult.getLabOrderId());
-                setString(statement, 2, labResult.getSendingFacilityId());
-                setString(statement, 3, labResult.getReceivingLabCode());
+                statement.setString(1, labResult.getLabOrderId());
+                statement.setString(2, labResult.getSendingFacilityId());
+                statement.setString(3, labResult.getReceivingLabCode());
                 setTimestamp(statement, 4, labResult.getSendingDateTime());
 
                 String resultsJson = objectMapper.writeValueAsString(labResult.getLabTestResults());
-                setString(statement, 5, resultsJson);
+                statement.setString(5, resultsJson);
 
-                setString(statement, 6, labResult.getMessageId());
-                setString(statement, 7, labResult.getPatientNupn());
+                statement.setString(6, labResult.getMessageId());
+                statement.setString(7, labResult.getPatientNupn());
             } catch (Exception e) {
                 throw new SQLException("Failed to set statement parameters", e);
             }
