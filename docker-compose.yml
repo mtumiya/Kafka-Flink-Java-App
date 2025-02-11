@@ -11,7 +11,7 @@ services:
       - "2181:2181"
     networks:
       - lab-network
-    
+
   kafka:
     image: confluentinc/cp-kafka:7.5.1
     container_name: kafka
@@ -29,6 +29,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_MAX_TRANSACTION_TIMEOUT_MS: 3600000
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_MAX_REQUEST_SIZE: 10485760
+      KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 3600000
     networks:
       - lab-network
 
@@ -63,6 +68,8 @@ services:
         heartbeat.timeout: 180000
         heartbeat.interval: 10000
         web.upload.dir: /opt/flink/usrlib
+        taskmanager.memory.process.size: 2048m
+        jobmanager.memory.process.size: 1024m
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -80,11 +87,12 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 2
+        taskmanager.numberOfTaskSlots: 4
         state.backend: filesystem
         state.checkpoints.dir: file:///tmp/flink-checkpoints
         heartbeat.timeout: 180000
         heartbeat.interval: 10000
+        taskmanager.memory.process.size: 2048m
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
