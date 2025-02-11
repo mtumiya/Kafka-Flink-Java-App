@@ -19,13 +19,16 @@ zm\gov\moh\hie\pipeline\disa\KafkaTopicSetup.class
 zm\gov\moh\hie\pipeline\disa\HL7DeserializationSchema$HL7ResultDeserializationSchema.class
 zm\gov\moh\hie\pipeline\disa\JsonSerializationSchemas$LabOrderAckSerializationSchema.class
 zm\gov\moh\hie\pipeline\disa\BaseHL7DeserializationSchema.class
+zm\gov\moh\hie\pipeline\disa\LabResultProcessingJob.class
 zm\gov\moh\hie\pipeline\disa\JsonSerializationSchemas$LabOrderSerializationSchema.class
 zm\gov\moh\hie\pipeline\disa\TestHL7ResultProducer.class
+zm\gov\moh\hie\pipeline\disa\LabOrderProcessingJob.class
 zm\gov\moh\hie\pipeline\disa\LabResult.class
 zm\gov\moh\hie\pipeline\disa\PostgresSinkSchemas$LabOrderSink.class
 zm\gov\moh\hie\pipeline\disa\HL7AckMessageParser.class
 zm\gov\moh\hie\pipeline\disa\JsonSerializationSchemas.class
 zm\gov\moh\hie\pipeline\disa\LabOrder$Patient.class
 zm\gov\moh\hie\pipeline\disa\LabOrderAck.class
+zm\gov\moh\hie\pipeline\disa\LabOrderAckProcessingJob.class
 zm\gov\moh\hie\pipeline\disa\PropertiesConfig.class
 zm\gov\moh\hie\pipeline\disa\HL7DeserializationSchema.class

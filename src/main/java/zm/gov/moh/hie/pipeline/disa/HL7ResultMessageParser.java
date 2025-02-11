@@ -37,16 +37,15 @@ public class HL7ResultMessageParser {
             MSH msh = oruMessage.getMSH();
             labResult.setMessageId(msh.getMessageControlID().getValue());
 
-            // Get the sending facility code (second component of MSH-4)
+            // Get the sending facility code
             String facilityCode = msh.getSendingFacility().getUniversalID().getValue();
             if (facilityCode != null && !facilityCode.isEmpty()) {
                 labResult.setSendingFacilityId(facilityCode);
             } else {
-                // Fallback to namespace ID if universal ID is not available
                 labResult.setSendingFacilityId(msh.getSendingFacility().getNamespaceID().getValue());
             }
 
-            // Get receiving lab code from receiving facility
+            // Get receiving lab code
             labResult.setReceivingLabCode(msh.getReceivingFacility().getNamespaceID().getValue());
 
             // Get date/time from MSH segment
@@ -64,33 +63,34 @@ public class HL7ResultMessageParser {
             // Parse OBR and OBX segments for results
             List<LabResult.TestResult> testResults = new ArrayList<>();
             var orderObs = oruMessage.getPATIENT_RESULT().getORDER_OBSERVATION();
-
-            // Get the OBR segment
             OBR obr = orderObs.getOBR();
+
+            // Get common test information from OBR
             String testCode = obr.getUniversalServiceIdentifier().getIdentifier().getValue();
             String testName = obr.getUniversalServiceIdentifier().getText().getValue();
 
-            // Process OBX segments
+            // Process all observations
             int obsCount = orderObs.getOBSERVATIONReps();
-            for (int i = 0; i < obsCount; i++) {
-                OBX obx = orderObs.getOBSERVATION(i).getOBX();
+            if (obsCount > 0) {
                 LabResult.TestResult result = new LabResult.TestResult();
                 result.setCode(testCode);
                 result.setName(testName);
 
-                // Only process if we have values
-                if (obx.getObservationValue().length > 0) {
-                    result.setValue(obx.getObservationValue(0).encode());
-                    result.setUnit(obx.getUnits().getIdentifier().getValue());
-                    result.setReferenceRange(obx.getReferencesRange().getValue());
+                // Get the main result from the first relevant OBX
+                for (int i = 0; i < obsCount; i++) {
+                    OBX obx = orderObs.getOBSERVATION(i).getOBX();
+                    if (obx.getObservationValue().length > 0) {
+                        result.setValue(obx.getObservationValue(0).encode());
+                        result.setUnit(obx.getUnits().getIdentifier().getValue());
+                        result.setReferenceRange(obx.getReferencesRange().getValue());
 
-                    // Parse observation datetime
-                    String obsDateTime = obx.getDateTimeOfTheObservation().getTime().getValue();
-                    if (obsDateTime != null && !obsDateTime.isEmpty()) {
-                        result.setObservationDateTime(parseDateTime(obsDateTime));
+                        String obsDateTime = obx.getDateTimeOfTheObservation().getTime().getValue();
+                        if (obsDateTime != null && !obsDateTime.isEmpty()) {
+                            result.setObservationDateTime(parseDateTime(obsDateTime));
+                        }
+                        testResults.add(result);
+                        break;  // Only take the first valid result
                     }
-
-                    testResults.add(result);
                 }
             }
 
@@ -111,7 +111,6 @@ public class HL7ResultMessageParser {
             return null;
         }
 
-        // Handle different HL7 datetime formats
         try {
             switch (hl7DateTime.length()) {
                 case 12: // YYYYMMDDHHmm
@@ -122,7 +121,6 @@ public class HL7ResultMessageParser {
                     return LocalDateTime.parse(hl7DateTime, DateTimeFormatter.ofPattern("yyyyMMddHHmmss.SSS"));
                 default:
                     LOG.warn("Unexpected datetime format: {}", hl7DateTime);
-                    // Try to parse with base format by padding with zeros if needed
                     String paddedDateTime = hl7DateTime + "00".repeat((14 - hl7DateTime.length()) / 2);
                     return LocalDateTime.parse(paddedDateTime, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             }

@@ -8,7 +8,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.11.0</version>
         <configuration>
           <source>${maven.compiler.source}</source>
           <target>${maven.compiler.target}</target>
@@ -16,18 +16,56 @@
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.2.4</version>
+        <version>3.5.1</version>
         <executions>
           <execution>
+            <id>lab-orders-job</id>
             <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
             <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>lab-orders</shadedClassifierName>
               <transformers>
                 <transformer>
-                  <mainClass>com.example.flink.UserActivityStreamingJob</mainClass>
+                  <mainClass>zm.gov.moh.hie.pipeline.disa.LabOrderProcessingJob</mainClass>
                 </transformer>
+                <transformer />
+              </transformers>
+            </configuration>
+          </execution>
+          <execution>
+            <id>lab-orders-ack-job</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>lab-orders-ack</shadedClassifierName>
+              <transformers>
+                <transformer>
+                  <mainClass>zm.gov.moh.hie.pipeline.disa.LabOrderAckProcessingJob</mainClass>
+                </transformer>
+                <transformer />
+              </transformers>
+            </configuration>
+          </execution>
+          <execution>
+            <id>lab-results-job</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>lab-results</shadedClassifierName>
+              <transformers>
+                <transformer>
+                  <mainClass>zm.gov.moh.hie.pipeline.disa.LabResultProcessingJob</mainClass>
+                </transformer>
+                <transformer />
               </transformers>
             </configuration>
           </execution>
@@ -35,12 +73,21 @@
       </plugin>
     </plugins>
   </build>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-streaming-java</artifactId>
+      <version>1.18.1</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
   <properties>
-    <scala.binary.version>2.12</scala.binary.version>
-    <maven.compiler.target>17</maven.compiler.target>
     <maven.compiler.source>17</maven.compiler.source>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jackson.version>2.15.2</jackson.version>
     <flink.version>1.18.1</flink.version>
+    <hapi.version>2.3</hapi.version>
     <kafka.version>3.5.1</kafka.version>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 </project>
