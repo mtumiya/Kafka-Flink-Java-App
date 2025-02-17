@@ -11,22 +11,30 @@ import java.util.Properties;
 
 public class TestHL7ResultProducer {
     private static final Logger LOG = LoggerFactory.getLogger(TestHL7ResultProducer.class);
-    private static final String DEFAULT_BOOTSTRAP_SERVERS = "localhost:9092"; // External listener address
 
     public static void main(String[] args) {
-        // Get configuration with defaults
         String topic = PropertiesConfig.getProperty("kafka.topics.lab-results", "lab-results");
+        // Use localhost:9092 for development, get from config for production
+        String bootstrapServers = "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))
+                ? PropertiesConfig.getProperty("kafka.bootstrap.servers")
+                : "localhost:9092";
 
-        LOG.info("Connecting to Kafka at: {}", DEFAULT_BOOTSTRAP_SERVERS);
+        LOG.info("Connecting to Kafka at: {}", bootstrapServers);
         LOG.info("Publishing to topic: {}", topic);
 
         Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, DEFAULT_BOOTSTRAP_SERVERS);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
+
+        // Add security properties if in production
+        if ("prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))) {
+            LOG.info("Adding production security configuration");
+            props.putAll(PropertiesConfig.getKafkaSecurityProperties());
+        }
 
         // Sample HL7 result message
         String hl7ResultMessage = "MSH|^~\\&|DISA*LAB|Minga Mission Hospital^ZMG^URI|SmartCare|1969|20250127111249||ORU^R01^ORU_R01|3AD623C1-B49D-4A2F-B5C2-170E875A79A5|P^T|2.5||||AL|ZMB\r" +

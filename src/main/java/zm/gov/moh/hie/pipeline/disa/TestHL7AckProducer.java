@@ -11,22 +11,31 @@ import java.util.Properties;
 
 public class TestHL7AckProducer {
     private static final Logger LOG = LoggerFactory.getLogger(TestHL7AckProducer.class);
-    private static final String DEFAULT_BOOTSTRAP_SERVERS = "localhost:9092"; // External listener address
 
     public static void main(String[] args) {
-        // Get configuration with defaults
         String topic = PropertiesConfig.getProperty("kafka.topics.lab-orders-ack", "lab-orders-ack");
 
-        LOG.info("Connecting to Kafka at: {}", DEFAULT_BOOTSTRAP_SERVERS);
+        // Use localhost:9092 for development, get from config for production
+        String bootstrapServers = "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))
+                ? PropertiesConfig.getProperty("kafka.bootstrap.servers")
+                : "localhost:9092";
+
+        LOG.info("Connecting to Kafka at: {}", bootstrapServers);
         LOG.info("Publishing to topic: {}", topic);
 
         Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, DEFAULT_BOOTSTRAP_SERVERS);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
+
+        // Add security properties if in production
+        if ("prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))) {
+            LOG.info("Adding production security configuration");
+            props.putAll(PropertiesConfig.getKafkaSecurityProperties());
+        }
 
         // Sample ACK message
         String hl7AckMessage = "MSH|^~\\&|DISA*LAB|ZCR|SmartCare|50030009|20250127115737||ACK^O21^ACK|7fba0209-2db9-4821-b1b9-6da639c759e1|P^T|2.5||||NE|ZMB\r" +

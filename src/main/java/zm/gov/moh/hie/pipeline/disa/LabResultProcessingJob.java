@@ -43,7 +43,6 @@ public class LabResultProcessingJob {
     private static void configureEnvironment(StreamExecutionEnvironment env) {
         LOG.info("Configuring Flink environment");
 
-        // Similar environment configuration as other jobs
         env.enableCheckpointing(5000);
         env.getCheckpointConfig().setCheckpointTimeout(60000);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(2000);
@@ -58,7 +57,9 @@ public class LabResultProcessingJob {
         String consumerGroup = PropertiesConfig.getProperty("kafka.consumer.group");
         String topic = PropertiesConfig.getProperty("kafka.topics.lab-results");
 
+        // Get base Kafka properties and add security properties
         Properties sourceProperties = new Properties();
+        sourceProperties.putAll(PropertiesConfig.getKafkaSecurityProperties());
         sourceProperties.setProperty("isolation.level", "read_committed");
         sourceProperties.setProperty("auto.offset.reset", "earliest");
 
@@ -87,8 +88,9 @@ public class LabResultProcessingJob {
         String bootstrapServers = PropertiesConfig.getProperty("kafka.bootstrap.servers");
         String jsonTopic = PropertiesConfig.getProperty("kafka.topics.lab-results-json");
 
-        // Configure Kafka producer properties
+        // Configure Kafka producer properties with security
         Properties producerConfig = new Properties();
+        producerConfig.putAll(PropertiesConfig.getKafkaSecurityProperties());
         producerConfig.setProperty("transaction.timeout.ms", "3600000");
         producerConfig.setProperty("max.block.ms", "60000");
         producerConfig.setProperty("request.timeout.ms", "60000");

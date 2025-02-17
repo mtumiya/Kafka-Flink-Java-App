@@ -43,12 +43,11 @@ public class LabOrderProcessingJob {
     private static void configureEnvironment(StreamExecutionEnvironment env) {
         LOG.info("Configuring Flink environment");
 
-        // Reduced checkpoint interval and increased restart attempts
-        env.enableCheckpointing(5000); // 5 seconds
-        env.getCheckpointConfig().setCheckpointTimeout(60000); // 1 minute
-        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(2000); // 2 seconds
+        env.enableCheckpointing(5000);
+        env.getCheckpointConfig().setCheckpointTimeout(60000);
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(2000);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, 10000)); // 5 attempts, 10 second delay
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, 10000));
 
         LOG.info("Environment configured successfully");
     }
@@ -58,7 +57,9 @@ public class LabOrderProcessingJob {
         String consumerGroup = PropertiesConfig.getProperty("kafka.consumer.group");
         String topic = PropertiesConfig.getProperty("kafka.topics.lab-orders");
 
+        // Get base Kafka properties
         Properties sourceProperties = new Properties();
+        sourceProperties.putAll(PropertiesConfig.getKafkaSecurityProperties());  // Add security properties
         sourceProperties.setProperty("isolation.level", "read_committed");
         sourceProperties.setProperty("auto.offset.reset", "earliest");
 
@@ -70,7 +71,7 @@ public class LabOrderProcessingJob {
                 .setGroupId(consumerGroup)
                 .setStartingOffsets(OffsetsInitializer.earliest())
                 .setValueOnlyDeserializer(new HL7DeserializationSchema.HL7MessageDeserializationSchema())
-                .setProperties(sourceProperties)
+                .setProperties(sourceProperties)  // Include security properties
                 .build();
 
         return env
@@ -87,9 +88,10 @@ public class LabOrderProcessingJob {
         String bootstrapServers = PropertiesConfig.getProperty("kafka.bootstrap.servers");
         String jsonTopic = PropertiesConfig.getProperty("kafka.topics.lab-orders-json");
 
-        // Configure Kafka producer properties
+        // Configure Kafka producer properties with security
         Properties producerConfig = new Properties();
-        producerConfig.setProperty("transaction.timeout.ms", "3600000"); // 1 hour
+        producerConfig.putAll(PropertiesConfig.getKafkaSecurityProperties());  // Add security properties
+        producerConfig.setProperty("transaction.timeout.ms", "3600000");
         producerConfig.setProperty("max.block.ms", "60000");
         producerConfig.setProperty("request.timeout.ms", "60000");
         producerConfig.setProperty("retries", "3");
@@ -104,7 +106,7 @@ public class LabOrderProcessingJob {
                         .build()
                 )
                 .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .setKafkaProducerConfig(producerConfig)
+                .setKafkaProducerConfig(producerConfig)  // Include security properties
                 .build();
 
         labOrderStream
