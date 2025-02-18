@@ -14,13 +14,14 @@ public class PostgresSinkSchemas {
         private static final long serialVersionUID = 1L;
         private static final String INSERT_SQL =
                 "INSERT INTO lab_orders " +
-                        "(lab_order_id, sending_facility_id, receiving_lab_code, sending_date_time, lab_tests_ordered) " +
-                        "VALUES (?, ?, ?, ?, ?::jsonb) " +
+                        "(lab_order_id, sending_facility_id, receiving_lab_code, sending_date_time, lab_tests_ordered, message_id) " +
+                        "VALUES (?, ?, ?, ?, ?::jsonb, ?) " +
                         "ON CONFLICT (lab_order_id) DO UPDATE SET " +
                         "sending_facility_id = EXCLUDED.sending_facility_id, " +
                         "receiving_lab_code = EXCLUDED.receiving_lab_code, " +
                         "sending_date_time = EXCLUDED.sending_date_time, " +
-                        "lab_tests_ordered = EXCLUDED.lab_tests_ordered";
+                        "lab_tests_ordered = EXCLUDED.lab_tests_ordered, " +
+                        "message_id = EXCLUDED.message_id";
 
         public LabOrderSink(String url, String username, String password) {
             super(url, username, password);
@@ -39,15 +40,14 @@ public class PostgresSinkSchemas {
                 setString(statement, 2, labOrder.getSendingFacilityId());
                 setString(statement, 3, labOrder.getReceivingLabCode());
                 setTimestamp(statement, 4, labOrder.getSendingDateTime());
-
                 String labTestsJson = objectMapper.writeValueAsString(labOrder.getLabTestsOrdered());
                 setString(statement, 5, labTestsJson);
+                setString(statement, 6, labOrder.getMessageId());
             } catch (Exception e) {
                 throw new SQLException("Failed to set statement parameters", e);
             }
         }
     }
-
     /**
      * PostgreSQL sink for LabOrderAck objects.
      */

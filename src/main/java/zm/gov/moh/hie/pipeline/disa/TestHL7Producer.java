@@ -13,33 +13,58 @@ public class TestHL7Producer {
     private static final Logger LOG = LoggerFactory.getLogger(TestHL7Producer.class);
 
     public static void main(String[] args) {
-        // Use localhost:9092 for development, get from config for production
-        String bootstrapServers = "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))
-                ? PropertiesConfig.getProperty("kafka.bootstrap.servers")
-                : "localhost:9092";
+        LOG.info("Starting TestHL7Producer...");
+        LOG.info("Java Version: {}", System.getProperty("java.version"));
+        LOG.info("Current Working Directory: {}", System.getProperty("user.dir"));
+        LOG.info("SPRING_PROFILES_ACTIVE: {}", System.getenv("SPRING_PROFILES_ACTIVE"));
 
-        String topic = PropertiesConfig.getProperty("kafka.topics.lab-orders", "lab-orders");
+        boolean isProd = "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"));
 
-        LOG.info("Connecting to Kafka at: {}", bootstrapServers);
-        LOG.info("Publishing to topic: {}", topic);
-
+        // Get the proper bootstrap servers based on environment
+        String bootstrapServers;
         Properties props = new Properties();
+
+        if (isProd) {
+            LOG.info("Initializing PRODUCTION configuration");
+            bootstrapServers = PropertiesConfig.getProperty("kafka.bootstrap.servers");
+            Properties securityProps = PropertiesConfig.getKafkaSecurityProperties();
+
+            LOG.info("Production Configuration:");
+            LOG.info("Bootstrap Servers: {}", bootstrapServers);
+            LOG.info("Security Protocol: {}", securityProps.getProperty("security.protocol"));
+            LOG.info("SASL Mechanism: {}", securityProps.getProperty("sasl.mechanism"));
+
+            props.putAll(securityProps);
+        } else {
+            bootstrapServers = "localhost:9092";
+            LOG.info("Running in DEVELOPMENT mode with bootstrap servers: {}", bootstrapServers);
+        }
+
+        // Set basic producer properties
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        props.put(ProducerConfig.RETRIES_CONFIG, "3");
+        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, "60000");
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "60000");
+        props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, "1000");
 
-        // Add security properties if in production
-        if ("prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))) {
-            LOG.info("Adding production security configuration");
-            props.putAll(PropertiesConfig.getKafkaSecurityProperties());
-        }
+        String topic = PropertiesConfig.getProperty("kafka.topics.lab-orders", "lab-orders");
+        LOG.info("Target topic: {}", topic);
+
+        // Log all producer properties (excluding sensitive info)
+        LOG.info("Producer Properties:");
+        props.stringPropertyNames().stream()
+                .filter(key -> !key.contains("password") && !key.contains("secret"))
+                .forEach(key -> LOG.info("{}={}", key, props.getProperty(key)));
 
         // Sample HL7 message
-        String hl7Message = "MSH|^~\\&|CarePro|Chongwe District Hospital^50030009^URI|DISA*LAB|ZCR|20250127115737||OML^O21^OML_O21|7fba0209-2db9-4821-b1b9-6da639c759e1|P^T|2.5|1|||AL|ZMB\r" +
-                "PID|1|5003-0009C-00039-2|5003-0009C-00039-2^^^zm.gov.moh.sc&api_nupn&api_nupn^MR||Test^DISA||19601101|M|||^^Chongwe^^^^^^^^^^20250127115737||766279999||||||||||||||||||||20250127115737\r" +
+        String hl7Message = "MSH|^~\\&|CarePro|Chongwe District Hospital^50030009^URI|DISA*LAB|ZCR|20250127115737||OML^O21^OML_O21|" +
+                "7fba0209-2db9-4821-b1b9-6da639c759e1|P^T|2.5|1|||AL|ZMB\r" +
+                "PID|1|5003-0009C-00039-2|5003-0009C-00039-2^^^zm.gov.moh.sc&api_nupn&api_nupn^MR||Test^DISA||19601101|M|||" +
+                "^^Chongwe^^^^^^^^^^20250127115737||766279999||||||||||||||||||||20250127115737\r" +
                 "PV1|1|O|50030009^^^^^^^^Chongwe District Hospital|||||111111/11/1^Administrator^System||||||||||||||||||||||||||||||||||||20250127115737\r" +
                 "ORC|NW|51A9DF0291|||||||20250127155100\r" +
                 "OBR|1|51A9DF0291||47245-6^Viral Load^LOINC|Regular|20250127115737|20250127115737\r" +
@@ -52,18 +77,25 @@ public class TestHL7Producer {
 
             producer.send(record, (metadata, exception) -> {
                 if (exception != null) {
-                    LOG.error("Error sending message: {}", exception.getMessage());
+                    LOG.error("Error sending message:", exception);
+                    LOG.error("Error details: {}", exception.getMessage());
+                    if (exception.getCause() != null) {
+                        LOG.error("Cause: {}", exception.getCause().getMessage());
+                    }
                 } else {
-                    LOG.info("Message sent to partition {} with offset {}",
-                            metadata.partition(), metadata.offset());
+                    LOG.info("Message successfully sent:");
+                    LOG.info("Topic: {}", metadata.topic());
+                    LOG.info("Partition: {}", metadata.partition());
+                    LOG.info("Offset: {}", metadata.offset());
+                    LOG.info("Timestamp: {}", metadata.timestamp());
                 }
             });
 
             producer.flush();
-            LOG.info("Test message sent successfully");
+            LOG.info("Producer flush completed");
         } catch (Exception e) {
-            LOG.error("Error in producer: {}", e.getMessage(), e);
-            e.printStackTrace();
+            LOG.error("Critical error in producer:", e);
+            System.exit(1);
         }
     }
 }

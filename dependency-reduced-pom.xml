@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.example</groupId>
+  <groupId>zm.gov.moh.hie</groupId>
   <artifactId>flink-kafka-stream</artifactId>
   <version>1.0-SNAPSHOT</version>
   <build>
@@ -12,6 +12,11 @@
         <configuration>
           <source>${maven.compiler.source}</source>
           <target>${maven.compiler.target}</target>
+          <compilerArgs>
+            <arg>--add-opens=java.base/java.util=ALL-UNNAMED</arg>
+            <arg>--add-opens=java.base/java.lang=ALL-UNNAMED</arg>
+            <arg>--add-opens=java.base/java.time=ALL-UNNAMED</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
@@ -27,9 +32,23 @@
             <configuration>
               <shadedArtifactAttached>true</shadedArtifactAttached>
               <shadedClassifierName>lab-orders</shadedClassifierName>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
               <transformers>
                 <transformer>
                   <mainClass>zm.gov.moh.hie.pipeline.disa.LabOrderProcessingJob</mainClass>
+                  <manifestEntries>
+                    <Add-Opens>java.base/java.util java.base/java.lang java.base/java.time</Add-Opens>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
                 </transformer>
                 <transformer />
               </transformers>
@@ -44,9 +63,23 @@
             <configuration>
               <shadedArtifactAttached>true</shadedArtifactAttached>
               <shadedClassifierName>lab-orders-ack</shadedClassifierName>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
               <transformers>
                 <transformer>
                   <mainClass>zm.gov.moh.hie.pipeline.disa.LabOrderAckProcessingJob</mainClass>
+                  <manifestEntries>
+                    <Add-Opens>java.base/java.util java.base/java.lang java.base/java.time</Add-Opens>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
                 </transformer>
                 <transformer />
               </transformers>
@@ -61,9 +94,23 @@
             <configuration>
               <shadedArtifactAttached>true</shadedArtifactAttached>
               <shadedClassifierName>lab-results</shadedClassifierName>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
               <transformers>
                 <transformer>
                   <mainClass>zm.gov.moh.hie.pipeline.disa.LabResultProcessingJob</mainClass>
+                  <manifestEntries>
+                    <Add-Opens>java.base/java.util java.base/java.lang java.base/java.time</Add-Opens>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
                 </transformer>
                 <transformer />
               </transformers>
@@ -73,14 +120,6 @@
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java</artifactId>
-      <version>1.18.1</version>
-      <scope>provided</scope>
-    </dependency>
-  </dependencies>
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
     <jackson.version>2.15.2</jackson.version>

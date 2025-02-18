@@ -21,14 +21,28 @@ public class PropertiesConfig {
 
     private static void loadProperties() {
         try {
+            // Log the classpath for debugging
+            LOG.info("Classpath: {}", System.getProperty("java.class.path"));
+
             // Load default properties first
+            LOG.info("Attempting to load default properties from: {}", DEFAULT_PROPERTIES);
             loadPropertiesFile(DEFAULT_PROPERTIES);
 
             // Check if production profile is active
             String activeProfile = System.getenv("SPRING_PROFILES_ACTIVE");
+            LOG.info("Active Profile: {}", activeProfile);
+
             if ("prod".equalsIgnoreCase(activeProfile)) {
-                LOG.info("Loading production properties");
+                LOG.info("Loading production properties from: {}", PROD_PROPERTIES);
                 loadPropertiesFile(PROD_PROPERTIES);
+
+                // Log production-specific properties
+                LOG.info("Production Kafka Bootstrap Servers: {}",
+                        properties.getProperty("kafka.bootstrap.servers"));
+                LOG.info("Production Security Protocol: {}",
+                        properties.getProperty("kafka.security.protocol"));
+                LOG.info("Production SASL Mechanism: {}",
+                        properties.getProperty("kafka.sasl.mechanism"));
             }
 
             // Override with environment variables
@@ -37,8 +51,15 @@ public class PropertiesConfig {
             // Process property placeholders
             resolvePlaceholders();
 
+            // Log all loaded properties (excluding sensitive info)
+            LOG.info("Loaded Properties:");
+            properties.stringPropertyNames().stream()
+                    .filter(key -> !key.contains("password") && !key.contains("secret"))
+                    .forEach(key -> LOG.info("{}={}", key, properties.getProperty(key)));
+
             LOG.info("Properties loaded successfully. Active profile: {}",
                     activeProfile != null ? activeProfile : "default");
+
         } catch (Exception e) {
             LOG.error("Failed to load properties", e);
             throw new RuntimeException("Failed to load properties", e);
@@ -48,18 +69,23 @@ public class PropertiesConfig {
     private static void loadPropertiesFile(String filename) throws IOException {
         try (InputStream input = PropertiesConfig.class.getClassLoader().getResourceAsStream(filename)) {
             if (input == null) {
-                LOG.warn("Unable to find {}", filename);
-                return;
+                LOG.error("Unable to find {} in classpath", filename);
+                throw new IOException("Property file '" + filename + "' not found in classpath");
             }
+
             Properties fileProperties = new Properties();
             fileProperties.load(input);
+
+            // Log the number of properties loaded from this file
+            LOG.info("Loaded {} properties from {}", fileProperties.size(), filename);
+
             // Merge properties, with new properties taking precedence
             properties.putAll(fileProperties);
-            LOG.debug("Loaded properties from {}", filename);
         }
     }
 
     private static void loadEnvironmentOverrides() {
+        LOG.info("Loading environment variable overrides");
         System.getenv().forEach((key, value) -> {
             String normalizedKey = key.toLowerCase().replace('_', '.');
             if (properties.containsKey(normalizedKey)) {
@@ -70,6 +96,7 @@ public class PropertiesConfig {
     }
 
     private static void resolvePlaceholders() {
+        LOG.info("Resolving property placeholders");
         Properties resolvedProperties = new Properties();
         properties.forEach((key, value) -> {
             String resolvedValue = resolvePlaceholder(value.toString(), 0);
@@ -103,7 +130,6 @@ public class PropertiesConfig {
 
             String propertyValue = properties.getProperty(propertyKey, defaultValue);
             if (propertyValue != null) {
-                // Recursively resolve any nested placeholders
                 propertyValue = resolvePlaceholder(propertyValue, depth + 1);
                 result = result.substring(0, startIndex) +
                         propertyValue +
@@ -117,7 +143,18 @@ public class PropertiesConfig {
     }
 
     public static String getProperty(String key) {
-        return cachedProperties.computeIfAbsent(key, k -> properties.getProperty(k));
+        String value = cachedProperties.computeIfAbsent(key, k -> properties.getProperty(k));
+        if (value == null) {
+            LOG.warn("Property not found: {}", key);
+        } else {
+            // Log non-sensitive property values
+            if (!key.contains("password") && !key.contains("secret")) {
+                LOG.info("Retrieved property: {}={}", key, value);
+            } else {
+                LOG.info("Retrieved sensitive property: {}=*****", key);
+            }
+        }
+        return value;
     }
 
     public static String getProperty(String key, String defaultValue) {
@@ -125,23 +162,10 @@ public class PropertiesConfig {
         return value != null ? value : defaultValue;
     }
 
-    public static int getIntProperty(String key, int defaultValue) {
-        String value = getProperty(key);
-        try {
-            return value != null ? Integer.parseInt(value) : defaultValue;
-        } catch (NumberFormatException e) {
-            LOG.warn("Invalid integer value for key {}: {}", key, value);
-            return defaultValue;
-        }
-    }
-
-    public static boolean getBooleanProperty(String key, boolean defaultValue) {
-        String value = getProperty(key);
-        return value != null ? Boolean.parseBoolean(value) : defaultValue;
-    }
-
     public static Properties getKafkaProperties() {
         Properties kafkaProps = new Properties();
+        LOG.info("Collecting Kafka properties...");
+
         properties.stringPropertyNames().stream()
                 .filter(key -> key.startsWith("kafka."))
                 .forEach(key -> {
@@ -149,13 +173,21 @@ public class PropertiesConfig {
                     String value = properties.getProperty(key);
                     if (value != null && !value.trim().isEmpty()) {
                         kafkaProps.setProperty(kafkaKey, value);
+                        if (!key.contains("password") && !key.contains("secret")) {
+                            LOG.debug("Adding Kafka property: {}={}", kafkaKey, value);
+                        } else {
+                            LOG.debug("Adding sensitive Kafka property: {}=*****", kafkaKey);
+                        }
                     }
                 });
+
         return kafkaProps;
     }
 
     public static Properties getKafkaSecurityProperties() {
         Properties securityProps = new Properties();
+        LOG.info("Collecting Kafka security properties...");
+
         properties.stringPropertyNames().stream()
                 .filter(key -> key.startsWith("kafka.") &&
                         (key.contains(".security.") ||
@@ -166,12 +198,19 @@ public class PropertiesConfig {
                     String value = properties.getProperty(key);
                     if (value != null && !value.trim().isEmpty()) {
                         securityProps.setProperty(kafkaKey, value);
+                        if (!key.contains("password") && !key.contains("secret")) {
+                            LOG.info("Adding security property: {}={}", kafkaKey, value);
+                        } else {
+                            LOG.info("Adding security property: {}=*****", kafkaKey);
+                        }
                     }
                 });
+
         return securityProps;
     }
 
     public static void clearCache() {
         cachedProperties.clear();
+        LOG.info("Property cache cleared");
     }
 }

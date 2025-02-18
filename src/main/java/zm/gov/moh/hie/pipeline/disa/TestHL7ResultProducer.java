@@ -13,28 +13,52 @@ public class TestHL7ResultProducer {
     private static final Logger LOG = LoggerFactory.getLogger(TestHL7ResultProducer.class);
 
     public static void main(String[] args) {
-        String topic = PropertiesConfig.getProperty("kafka.topics.lab-results", "lab-results");
-        // Use localhost:9092 for development, get from config for production
-        String bootstrapServers = "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))
-                ? PropertiesConfig.getProperty("kafka.bootstrap.servers")
-                : "localhost:9092";
+        LOG.info("Starting TestHL7ResultProducer...");
+        LOG.info("Java Version: {}", System.getProperty("java.version"));
+        LOG.info("Current Working Directory: {}", System.getProperty("user.dir"));
+        LOG.info("SPRING_PROFILES_ACTIVE: {}", System.getenv("SPRING_PROFILES_ACTIVE"));
 
-        LOG.info("Connecting to Kafka at: {}", bootstrapServers);
-        LOG.info("Publishing to topic: {}", topic);
+        boolean isProd = "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"));
 
+        // Get the proper bootstrap servers based on environment
+        String bootstrapServers;
         Properties props = new Properties();
+
+        if (isProd) {
+            LOG.info("Initializing PRODUCTION configuration");
+            bootstrapServers = PropertiesConfig.getProperty("kafka.bootstrap.servers");
+            Properties securityProps = PropertiesConfig.getKafkaSecurityProperties();
+
+            LOG.info("Production Configuration:");
+            LOG.info("Bootstrap Servers: {}", bootstrapServers);
+            LOG.info("Security Protocol: {}", securityProps.getProperty("security.protocol"));
+            LOG.info("SASL Mechanism: {}", securityProps.getProperty("sasl.mechanism"));
+
+            props.putAll(securityProps);
+        } else {
+            bootstrapServers = "localhost:9092";
+            LOG.info("Running in DEVELOPMENT mode with bootstrap servers: {}", bootstrapServers);
+        }
+
+        // Set basic producer properties
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        props.put(ProducerConfig.RETRIES_CONFIG, "3");
+        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, "60000");
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "60000");
+        props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, "1000");
 
-        // Add security properties if in production
-        if ("prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))) {
-            LOG.info("Adding production security configuration");
-            props.putAll(PropertiesConfig.getKafkaSecurityProperties());
-        }
+        String topic = PropertiesConfig.getProperty("kafka.topics.lab-results", "lab-results");
+        LOG.info("Target topic: {}", topic);
+
+        // Log all producer properties (excluding sensitive info)
+        LOG.info("Producer Properties:");
+        props.stringPropertyNames().stream()
+                .filter(key -> !key.contains("password") && !key.contains("secret"))
+                .forEach(key -> LOG.info("{}={}", key, props.getProperty(key)));
 
         // Sample HL7 result message
         String hl7ResultMessage = "MSH|^~\\&|DISA*LAB|Minga Mission Hospital^ZMG^URI|SmartCare|1969|20250127111249||ORU^R01^ORU_R01|3AD623C1-B49D-4A2F-B5C2-170E875A79A5|P^T|2.5||||AL|ZMB\r" +
@@ -53,18 +77,25 @@ public class TestHL7ResultProducer {
 
             producer.send(record, (metadata, exception) -> {
                 if (exception != null) {
-                    LOG.error("Error sending result message: {}", exception.getMessage());
+                    LOG.error("Error sending message:", exception);
+                    LOG.error("Error details: {}", exception.getMessage());
+                    if (exception.getCause() != null) {
+                        LOG.error("Cause: {}", exception.getCause().getMessage());
+                    }
                 } else {
-                    LOG.info("Result message sent to partition {} with offset {}",
-                            metadata.partition(), metadata.offset());
+                    LOG.info("Message successfully sent:");
+                    LOG.info("Topic: {}", metadata.topic());
+                    LOG.info("Partition: {}", metadata.partition());
+                    LOG.info("Offset: {}", metadata.offset());
+                    LOG.info("Timestamp: {}", metadata.timestamp());
                 }
             });
 
             producer.flush();
-            LOG.info("Test result message sent successfully");
+            LOG.info("Producer flush completed");
         } catch (Exception e) {
-            LOG.error("Error in producer: {}", e.getMessage());
-            e.printStackTrace();
+            LOG.error("Critical error in producer:", e);
+            System.exit(1);
         }
     }
 }
